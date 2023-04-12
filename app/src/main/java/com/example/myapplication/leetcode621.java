@@ -1,68 +1,108 @@
 package com.example.myapplication;
 
+import android.util.Log;
+
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Stack;
+import java.util.function.Consumer;
 
 public class leetcode621 {
     public static int leastInterval(char[] tasks, int n) {
-        if (n == 0) {
-            return tasks.length;
-        }
+        ArrayList<Integer> queue = new ArrayList<>(tasks.length * 2);
         int time = 0;
-        int alreadyRun = 0;
+        int index = 0;
 
-        int runTask = -1;
-        int max = 0;
-
-        HashMap<Character, Integer> map = new HashMap<>();
-        HashMap<Character, Integer> countMap = new HashMap<>();
+        int[] temp = new int[26];
 
         for (char c : tasks) {
-            if (countMap.get(c) == null) {
-                countMap.put(c, 1);
-            } else {
-                countMap.put(c, countMap.get(c) + 1);
-            }
+            temp[c - 'A'] += 1;
         }
 
-        while (alreadyRun < tasks.length) {
-            for (int i = 0; i < tasks.length; i++) {
-                char task = tasks[i];
-                if (task == '/') {
-                    continue;
-                }
-                if (map.get(task) == null) {
-                    if (countMap.get(task) > max) {
-                        max = countMap.get(task);
-                        countMap.put(task, countMap.get(task) - 1);
-                        runTask = i;
-                        break;
-                    }
-                } else {
-                    int index = map.get(task);
-                    if (time - index < n) {
-                        runTask = -1;
-                    } else if (time - index == n) {
-                        runTask = i;
-                        break;
-                    } else {
-                        if (countMap.get(task) > max) {
-                            max = countMap.get(task);
-                            countMap.put(task, countMap.get(task) - 1);
-                            runTask = i;
+        System.out.println(Arrays.toString(temp));
+        while (index < tasks.length) {
+            if (queue.size() <= n) {
+                boolean toNextTask = false;
+                // 先取有重复的
+                for (int i = 0; i < 26; i++) {
+                    if (temp[i] > 1) {
+                        if (!queue.contains(i)) {
+                            //执行了
+                            index++;
+                            queue.add(i);
+                            toNextTask = true;
+                            temp[i] -= 1;
                             break;
                         }
                     }
                 }
+                if (!toNextTask) {
+                    //没有重复的了，直接随便取一个就行了
+                    for (int i = 0; i < 26; i++) {
+                        if (temp[i] == 1) {
+                            if (!queue.contains(i)) {
+                                //执行了
+                                index++;
+                                toNextTask = true;
+                                queue.add(i);
+                                temp[i] -= 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (!toNextTask) {
+                    queue.add(-1);
+                }
+            } else {
+                // queue已经够了，优先找n+1的位置
+                if (queue.get(queue.size() - n - 1) != -1 && temp[queue.get(queue.size() - n - 1)] >= 1) {
+                    temp[queue.get(queue.size() - n - 1)] -= 1;
+                    queue.add(queue.get(queue.size() - n - 1));
+                    index++;
+                } else {
+                    // 先取有重复的
+                    boolean toNextTask = false;
+                    for (int i = 0; i < 26; i++) {
+                        if (temp[i] > 1) {
+                            int k = queue.indexOf(i);
+                            if (k > queue.size() - n || k == -1) {
+                                //执行了
+                                index++;
+                                queue.add(i);
+                                toNextTask = true;
+                                temp[i] -= 1;
+                                break;
+                            }
+                        }
+                    }
+                    if (!toNextTask) {
+                        //没有重复的了，直接随便取一个就行了
+                        for (int i = 0; i < 26; i++) {
+                            if (temp[i] == 1) {
+                                int k = queue.indexOf(i);
+                                if (k > queue.size() - n || k == -1) {
+                                    //执行了
+                                    index++;
+                                    queue.add(i);
+                                    temp[i] -= 1;
+                                    toNextTask = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (!toNextTask) {
+                        queue.add(-1);
+                    }
+                }
             }
-            if (runTask != -1) {
-                alreadyRun++;
-                map.put(tasks[runTask], time);
-                tasks[runTask] = '/';
-            }
+            System.out.println(queue);
             time++;
-            System.out.println(Arrays.toString(tasks));
         }
         return time;
     }
