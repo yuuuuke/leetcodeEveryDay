@@ -1,5 +1,6 @@
 package com.example.myapplication;
 
+// 二叉树node
 public class TreeNode {
     public int val;
     public TreeNode left;
@@ -18,3 +19,7 @@ public class TreeNode {
         this.right = right;
     }
 }
+//
+//中左右
+//左中右
+//左右中

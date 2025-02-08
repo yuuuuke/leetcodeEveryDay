@@ -1,5 +1,6 @@
 package com.example.myapplication;
 
+// 链表 node
 public class ListNode {
     public int val;
     public ListNode next;

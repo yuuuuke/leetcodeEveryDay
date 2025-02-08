@@ -1,117 +1,133 @@
 package com.example.myapplication.activity
 
-import android.app.Activity
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Rect
+import android.hardware.Camera
 import android.os.Bundle
 import android.util.Log
+import android.view.SurfaceHolder
+import android.view.SurfaceView
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.example.myapplication.R
-import com.tencent.smtt.export.external.interfaces.PermissionRequest
-import com.tencent.smtt.sdk.ValueCallback
-import com.tencent.smtt.sdk.WebChromeClient
-import com.tencent.smtt.sdk.WebView
-import com.tencent.smtt.sdk.WebViewClient
+import net.sourceforge.zbar.*
 
-public class MainActivity : Activity() {
 
+class MainActivity : AppCompatActivity() {
+    private var cameraPreview: SurfaceView? = null
+    private var resultTextView: TextView? = null
+    private lateinit var camera: Camera
+    private var scanner: ImageScanner? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        val webView = findViewById<WebView>(R.id.webView)
-        webView.settings.allowFileAccess = true
-        //如果访问的页面中有Javascript，则webview必须设置支持Javascript
-        webView.settings.javaScriptEnabled = true
+        cameraPreview = findViewById<SurfaceView>(R.id.cameraPreview)
+        resultTextView = findViewById<TextView>(R.id.resultTextView)
 
-        webView.settings.setAppCacheEnabled(true)
+        // 初始化 ZBar 的扫描器
+        scanner = ImageScanner()
+        scanner!!.setConfig(Symbol.NONE, Config.ENABLE, 1)
 
-        webView.settings.domStorageEnabled = true
-        webView.settings.databaseEnabled = true
-
-        webView.settings.builtInZoomControls = true
-        webView.settings.displayZoomControls = false
-
-        webView.settings.useWideViewPort = true
-
-
-        webView.settings.loadWithOverviewMode = true
-
-        webView.settings.allowContentAccess = true // 是否可访问Content Provider的资源，默认值 true
-        webView.settings.allowFileAccess = true // 是否可访问本地文件，默认值 true
-        webView.settings.javaScriptEnabled = true
-        webView.settings.setSupportZoom(true)
-
-        webView.loadUrl("http://patient-test.kuaihuw.com/chat_room?client=phone&system=android&clientVersion=7.5.1903&caseId=46962&doctorId=4159&caseParams=JTdCJTIyY3VzdENlcnRObyUyMiUzQSUyMktZMDYwMzIzJTIyJTJDJTIyaWQlMjIlM0ElMjIzYThhZjI3MTJlZjU0ZDNiYjk3ZDA3Mzg5ZjdlMDVlMiUyMiU3RA==")
-
-        webView.webViewClient = object: WebViewClient(){
-            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                view?.loadUrl(url!!)
-                return true
-            }
+        // 检查相机权限
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.CAMERA
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.CAMERA),
+                REQUEST_CAMERA_PERMISSION
+            )
+        } else {
+            setupCamera()
         }
+    }
 
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onPermissionRequest(request: PermissionRequest) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    request.grant(request.resources)
+    private fun setupCamera() {
+        val holder = cameraPreview!!.holder
+        holder.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceCreated(surfaceHolder: SurfaceHolder) {
+                try {
+                    camera = Camera.open()
+                    val params = camera.parameters
+                    params.setPreviewSize(1280,720)
+                    params.setPictureSize(1280,720)
+                    val x = 300
+                    val y = 800
+                    if (params.getMaxNumFocusAreas() > 0) {
+                        // 定义对焦区域
+                        val focusArea = Camera.Area(Rect(x - 100, y - 100, x + 100, y + 100), 1000)
+                        val focusAreas: ArrayList<Camera.Area> = ArrayList()
+                        focusAreas.add(focusArea)
+                        params.setFocusAreas(focusAreas)
+                    }
+                    camera.parameters = params
+                    camera.setPreviewDisplay(holder)
+                    camera.setDisplayOrientation(90)
+                    camera.setPreviewCallback { data, camera ->
+                        val parameters: Camera.Parameters = camera.getParameters()
+                        val size: Camera.Size = parameters.getPreviewSize()
+
+                        // 创建 ZBar Image
+                        val barcode =
+                            Image(size.width, size.height, "Y800")
+                        barcode.setData(data)
+
+                        // 扫描二维码
+                        if (scanner!!.scanImage(barcode) != 0) {
+                            val symbols = scanner!!.results
+                            for (symbol in symbols) {
+                                val result = symbol.data
+                                if (result != null) {
+                                    resultTextView!!.text = result
+                                    camera.setPreviewCallback(null) // 停止扫描
+                                    camera.stopPreview()
+                                    break
+                                }
+                            }
+                        }
+                    }
+                    camera.startPreview()
+                } catch (e: Exception) {
+                    Log.e("ZBar", "Error setting up camera: " + e.message)
                 }
             }
-            //h5调用本地相机相册For Android 4.1  - 5.0
-            override fun openFileChooser(
-                uploadMsg: ValueCallback<Uri?>,
-                acceptType: String?,
-                capture: String?
-            ) {
 
+            override fun surfaceChanged(surfaceHolder: SurfaceHolder, i: Int, i1: Int, i2: Int) {
+                if (camera != null) {
+                    camera.startPreview()
+                }
             }
 
-            //h5调用本地相机相册For 5.0+
-            override fun onShowFileChooser(
-                webView: WebView,
-                filePathCallback: ValueCallback<Array<Uri>>,
-                fileChooserParams: FileChooserParams
-            ): Boolean {
-                val i = Intent(Intent.ACTION_GET_CONTENT)
-                i.addCategory(Intent.CATEGORY_OPENABLE)
-                i.type = "image/*"
+            override fun surfaceDestroyed(surfaceHolder: SurfaceHolder) {
+                if (camera != null) {
+                    camera.stopPreview()
+                    camera.release()
+                }
+            }
+        })
+    }
 
-                return true
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CAMERA_PERMISSION) {
+            if (grantResults.size > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                setupCamera()
+            } else {
+                resultTextView!!.text = "相机权限被拒绝"
             }
         }
     }
 
-    override fun onRestart() {
-        Log.v("zwp", "1 onRestart")
-        super.onRestart()
-    }
-
-    override fun onResume() {
-        Log.v("zwp", "1 onResume")
-        super.onResume()
-    }
-
-    override fun onStart() {
-        Log.v("zwp", "1 onStart")
-        super.onStart()
-    }
-
-    override fun onPause() {
-        Log.v("zwp", "1 onPause")
-        super.onPause()
-    }
-
-    override fun onStop() {
-        Log.v("zwp", "1 onStop")
-        super.onStop()
-    }
-
-    override fun onDestroy() {
-        Log.v("zwp", "1 onDestroy")
-        super.onDestroy()
-    }
-
-    override fun onNewIntent(intent: Intent?) {
-        Log.v("zwp", "1 onNewIntent")
-        super.onNewIntent(intent)
+    companion object {
+        private const val REQUEST_CAMERA_PERMISSION = 100
     }
 }

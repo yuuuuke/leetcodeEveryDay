@@ -19,7 +19,7 @@ public class SplashActivity : Activity() {
         findViewById<View>(R.id.btn).setOnClickListener{
             val intent = Intent(this@SplashActivity,MainActivity::class.java);
             startActivity(intent);
-//            finish()
+            finish()
         }
     }
 
