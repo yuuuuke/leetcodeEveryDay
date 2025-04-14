@@ -6,10 +6,12 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.FragmentActivity
 import com.example.myapplication.R
 
 @SuppressLint("CustomSplashScreen")
-public class SplashActivity : Activity() {
+public class SplashActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -19,7 +21,6 @@ public class SplashActivity : Activity() {
         findViewById<View>(R.id.btn).setOnClickListener{
             val intent = Intent(this@SplashActivity,MainActivity::class.java);
             startActivity(intent);
-            finish()
         }
     }
 

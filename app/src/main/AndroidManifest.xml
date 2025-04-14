@@ -55,15 +55,13 @@
         </activity>
 
         <activity
-            android:screenOrientation="portrait"
+            android:launchMode="singleTask"
             android:name=".activity.MainActivity"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize"
             />
 
         <activity
             android:name=".activity.SecondActivity"
-            android:launchMode="singleTop"
-            android:exported="false"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize"
             />
 
